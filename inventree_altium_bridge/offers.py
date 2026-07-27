@@ -28,6 +28,13 @@ COLS = [
 
 def build_offer_rows(supplier_label="InvenTree", media_base=""):
     from company.models import ManufacturerPart
+    from part.models import PartInternalPriceBreak
+
+    # lowest-quantity internal price per part -> (amount, ISO currency) for Price/Currency columns
+    price_by_part = {}
+    for ipb in PartInternalPriceBreak.objects.all().order_by("part_id", "quantity"):
+        if ipb.part_id not in price_by_part:
+            price_by_part[ipb.part_id] = (ipb.price.amount, str(ipb.price.currency))
 
     rows = []
     qs = ManufacturerPart.objects.select_related("part", "manufacturer").all()
@@ -37,11 +44,7 @@ def build_offer_rows(supplier_label="InvenTree", media_base=""):
         if not mpn or part is None or not part.active:
             continue
 
-        # internal price (rolled-up part pricing), if computed
-        price = ""
-        pricing = getattr(part, "pricing", None)
-        if pricing is not None and getattr(pricing, "overall_min", None) is not None:
-            price = pricing.overall_min
+        price, currency = price_by_part.get(part.pk, ("", ""))
 
         img = ""
         if getattr(part, "image", None):
@@ -58,7 +61,7 @@ def build_offer_rows(supplier_label="InvenTree", media_base=""):
             "Description": (mp.description or part.description or ""),  # per-MPN desc if present
             "Product Photo URL": (media_base.rstrip("/") + img) if (img and media_base) else img,
             "Quantity": part.total_stock,                              # Decimal on-hand quantity
-            "Currency": "",
+            "Currency": currency,                                      # ISO code, e.g. USD/EUR
             "Price": price,
         })
     rows.sort(key=lambda r: r["Manufacturer Part Number"])
