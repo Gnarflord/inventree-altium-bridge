@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inventree-altium-bridge"
+version = "0.1.0"
+description = "InvenTree <-> Altium bridge: export a Custom-Parts-Provider offer feed, and import pick-and-place stock from an SMB share."
+readme = "README.md"
+license = { text = "AGPL-3.0-or-later" }
+authors = [{ name = "Jan Wolf", email = "jan.wolf@frickly.systems" }]
+requires-python = ">=3.9"
+keywords = ["inventree", "altium", "smb", "stock", "bom"]
+dependencies = [
+    "smbprotocol>=1.10.0",   # direct SMB access; pip pulls this automatically on install
+]
+
+[project.urls]
+Homepage = "https://github.com/frickly-systems/inventree-altium-bridge"
+
+# InvenTree discovers plugins via this entry-point group.
+[project.entry-points."inventree_plugins"]
+AltiumBridge = "inventree_altium_bridge.core:AltiumBridgePlugin"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["inventree_altium_bridge*"]
