@@ -1,13 +1,29 @@
 """Build the Altium Custom-Parts-Provider offer feed straight from the InvenTree ORM.
 
-One row per manufacturer-part MPN: MPN, Manufacturer, Supplier(=InvenTree), SPN(=IPN),
-Stock, Price, Currency, ProductURL, Photo.  (Mirror of altium-provider/gen_offers.py,
-but ORM-based so it runs in-process inside the plugin — no REST, no token.)
+One row per manufacturer-part MPN. Column headers match the exact parameter names Altium's
+Custom Parts Provider import expects, so the .PrtSync mapping is 1:1:
+
+  Manufacturer Name, Manufacturer Part Number, Supplier, Supplier Part Number,
+  Description, Product Photo URL, Quantity, Currency, Price
+
+ORM-based so it runs in-process inside the plugin — no REST, no token.
+Output is comma-delimited UTF-8 **without a BOM** (Altium mis-reads the BOM as part of the
+first header, e.g. "ï»¿Manufacturer Name").
 """
 import csv
 import io
 
-COLS = ["MPN", "Manufacturer", "Supplier", "SPN", "Stock", "Price", "Currency", "ProductURL", "Photo"]
+COLS = [
+    "Manufacturer Name",
+    "Manufacturer Part Number",
+    "Supplier",
+    "Supplier Part Number",
+    "Description",
+    "Product Photo URL",
+    "Quantity",
+    "Currency",
+    "Price",
+]
 
 
 def build_offer_rows(supplier_label="InvenTree", media_base=""):
@@ -35,25 +51,29 @@ def build_offer_rows(supplier_label="InvenTree", media_base=""):
                 img = ""
 
         rows.append({
-            "MPN": mpn,
-            "Manufacturer": mp.manufacturer.name if mp.manufacturer else "",
+            "Manufacturer Name": mp.manufacturer.name if mp.manufacturer else "",
+            "Manufacturer Part Number": mpn,
             "Supplier": supplier_label,
-            "SPN": part.IPN or "",
-            "Stock": part.total_stock,                       # Decimal on-hand quantity
-            "Price": price,
+            "Supplier Part Number": part.IPN or "",
+            "Description": (mp.description or part.description or ""),  # per-MPN desc if present
+            "Product Photo URL": (media_base.rstrip("/") + img) if (img and media_base) else img,
+            "Quantity": part.total_stock,                              # Decimal on-hand quantity
             "Currency": "",
-            "ProductURL": part.link or "",
-            "Photo": (media_base.rstrip("/") + img) if (img and media_base) else img,
+            "Price": price,
         })
-    rows.sort(key=lambda r: r["MPN"])
+    rows.sort(key=lambda r: r["Manufacturer Part Number"])
     return rows
 
 
 def offers_csv_bytes(supplier_label="InvenTree", media_base=""):
-    """Return the offer feed as UTF-8-BOM, ';'-delimited CSV bytes (Altium/Excel friendly)."""
+    """Return the offer feed as comma-delimited UTF-8 (no BOM) CSV bytes.
+
+    The csv module auto-quotes any field that contains a comma/quote/newline, so commas in
+    descriptions stay safe.
+    """
     rows = build_offer_rows(supplier_label, media_base)
     buf = io.StringIO()
-    w = csv.DictWriter(buf, fieldnames=COLS, delimiter=";")
+    w = csv.DictWriter(buf, fieldnames=COLS, delimiter=",")
     w.writeheader()
     w.writerows(rows)
-    return buf.getvalue().encode("utf-8-sig"), len(rows)
+    return buf.getvalue().encode("utf-8"), len(rows)   # plain UTF-8, no BOM

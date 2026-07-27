@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventree-altium-bridge"
-version = "0.1.0"
+version = "0.1.1"
 description = "InvenTree <-> Altium bridge: export a Custom-Parts-Provider offer feed, and import pick-and-place stock from an SMB share."
 readme = "README.md"
 license = { text = "AGPL-3.0-or-later" }
