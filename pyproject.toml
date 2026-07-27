@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inventree-altium-bridge"
-version = "0.1.2"
-description = "InvenTree <-> Altium bridge: export a Custom-Parts-Provider offer feed, and import pick-and-place stock from an SMB share."
+version = "0.1.3"
+description = "InvenTree <-> Altium bridge: export a Custom-Parts-Provider offer feed."
 readme = "README.md"
 license = { text = "AGPL-3.0-or-later" }
 authors = [{ name = "Jan Wolf", email = "jan.wolf@frickly.systems" }]
