@@ -1,41 +1,48 @@
 # inventree-altium-bridge (InvenTree plugin)
 
-One InvenTree plugin (mixins: Settings + Schedule + Urls) that bridges InvenTree with Altium
-and the pick-and-place machine — no separate image, CronJob, or volume mounts.
+An InvenTree plugin to integrate your component stock as a custom part supplier in Altium. By setting your local InvenTree as part supplier with the highest priority your BOM will first use your local stock and only fall back to other suppliers if your stock is not sufficient.
 
-- **Task A — offer feed OUT (implemented):** builds the Altium Custom-Parts-Provider feed from
-  the ORM (per MPN: `Supplier=InvenTree, SPN=IPN, Stock, Price, ProductURL, Photo`) and writes
-  `offers.csv` to an SMB share (Altium reads it). Also served at
-  `…/plugin/altium-bridge/offers.csv`.
-- **Task B — P&P stock IN (stub):** read the pick-and-place machine's stock file from an SMB
-  share, pre-process, and update InvenTree stock. `import_pnp_stock()` is a documented stub —
-  fill in once the machine's file format is known. This closes the loop: real stock → real
-  quantities in the Altium tiles.
+![Showcase ActiveBOM](docs/images/ActiveBOM.png)
+![Showcase A365](docs/images/A365-BOM.png)
 
-SMB is accessed directly via `smbprotocol` (credentials in plugin Settings), so **no k8s volume
-mounts / deployment changes** — GitOps-friendly, and pip pulls the dependency on install.
+The plugin builds an Altium Custom-Parts-Provider feed from the ORM (per MPN:
+`Supplier=InvenTree, SPN=IPN, Stock, Price, ProductURL, Photo`) and writes
+`offers.csv` to an SMB share (Altium reads it). Also served at
+`…/plugin/altium-bridge/offers.csv`.
 
-## Install (your existing GitHub flow)
-InvenTree Admin → Plugins → Install → repo URL `github.com/frickly-systems/inventree-altium-bridge`
-(subdir `plugin/` if kept in this monorepo) + package name `inventree-altium-bridge`. pip pulls
-`smbprotocol` automatically. Enable the plugin; it needs the "Enable Schedule Integration" +
-"Enable URL Integration" plugin options for the scheduled tasks and the HTTP endpoint.
+SMB is accessed directly via `smbprotocol` (credentials in plugin Settings), so
+no container volume mounts are necessary.
 
-## Configure (plugin Settings)
-`SUPPLIER_LABEL`, `MEDIA_BASE`, SMB `HOST/SHARE/USER/PASSWORD/DOMAIN`, `OFFERS_ENABLED`,
-`OFFERS_PATH`, and (later) `PNP_IMPORT_ENABLED` / `PNP_PATH`.
+## Plugin Settings
+| Setting | Description |
+|---|---|
+| `SUPPLIER_LABEL` | Name shown as the supplier tile in Altium (e.g. InvenTree) |
+| `MEDIA_BASE` | Prefix for relative image paths in the Photo column |
+| `OFFERS_ENABLED` | Write offers.csv to the SMB share on schedule |
+| `OFFERS_PATH` | Path on the share for the offer CSV |
+| `SMB_HOST` | SMB/CIFS server host or IP |
+| `SMB_SHARE` | Share name |
+| `SMB_USER` | SMB user name |
+| `SMB_PASSWORD` | SMB password |
+| `SMB_DOMAIN` | SMB domain |
 
-## Altium side
-Point the `.PrtSync` Custom Parts Provider config at the `offers.csv` on the share (file source),
-map columns (see [../altium-provider/README.md](../altium-provider/README.md)), enable the
-`EDMS.CustomOffersMerge` beta flag, schedule `ComponentSync.Executor.exe`.
+## Setup Altium Custom Parts Provider
+Disclaimer: This feature is in **Open Beta**.
 
-## Status / validation
-Syntax-checked here, but **not yet run inside InvenTree** — validate on your instance:
-model field assumptions (`Part.total_stock`, `Part.pricing.overall_min`, `ManufacturerPart.MPN`)
-and the mixin/scheduler API against your InvenTree version. The offer logic mirrors the
-REST-based `altium-provider/gen_offers.py`, which is tested (5,501 rows) against the live instance.
-
-## To implement Task B — share when ready
-- A sample of the P&P machine's stock file (the "weird format").
-- The SMB path to it, and how P&P part references map to InvenTree parts (IPN? MPN? a custom field?).
+1. Advanced Settings → enable **`EDMS.CustomOffersMerge`** (Open Beta). Confirm BOM Portal is on
+   and the single Custom-Parts-Provider slot is free.
+2. File » New » **Custom Parts Provider Synchronization Configuration** (`.PrtSync`),
+   **source = the CSV** on the mounted share (Excel/CSV file source; no OLE DB needed).
+3. **Parameter Mapping** (CSV column → Altium field):
+   | Altium field | CSV column |
+   |---|---|
+   | Key / MPN | `MPN` |
+   | Manufacturer | `Manufacturer` |
+   | Supplier | `Supplier` |
+   | SPN | `SPN` |
+   | Stock | `Stock` |
+   | Unit price | `Price` (+ `Currency`) |
+   | Product URL / Photo | `ProductURL` / `Photo` |
+4. Sync once manually → confirm a local "InvenTree" tile appears in ActiveBOM for a stocked MPN.
+5. Schedule headless: `ComponentSync.Executor.exe <config>.PrtSync` via Windows Task Scheduler
+   (hourly, daily). Logs: `C:\Users\Public\Documents\Altium\Logs\ComponentSync`.
