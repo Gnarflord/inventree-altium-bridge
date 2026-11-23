@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/frickly-systems/inventree-altium-bridge"
+Homepage = "https://github.com/Gnarflord/inventree-altium-bridge"
 
 # InvenTree discovers plugins via this entry-point group.
 [project.entry-points."inventree_plugins"]
