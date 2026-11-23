@@ -28,7 +28,7 @@ COLS = [
 
 def build_offer_rows(supplier_label="InvenTree", media_base=""):
     from company.models import ManufacturerPart
-    from part.models import PartInternalPriceBreak
+    from pricing.models import PartInternalPriceBreak
 
     # lowest-quantity internal price per part -> (amount, ISO currency) for Price/Currency columns
     price_by_part = {}
